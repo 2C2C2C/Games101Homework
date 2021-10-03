@@ -34,3 +34,6 @@
 # vs stuff
 .vscode
 .vs
+
+# build stuff
+*/build
