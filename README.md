@@ -1,18 +1,20 @@
 # Games101Homework
 
 ## 一些配置
-win10 + vscode
+win10
 
-cmake version 3.21.3
+vcpkg
 
-gcc version 8.1.0
+vs2017
 
-opencv 3.4.15
+opencv 4.5.3
 
-eigen 3.4.0
+eigen 3.3.9
+
+放弃自己配置camke啥的了，直接vcpkg了
 
 环境配置参考:
 
-https://zhuanlan.zhihu.com/p/259208999
+https://blog.csdn.net/qq_39006214/article/details/115493618
 
-https://code.visualstudio.com/docs/cpp/cmake-linux
+实际自己配置VCPKG的时候还是遇到坑了，一会儿补上
