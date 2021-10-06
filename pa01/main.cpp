@@ -53,55 +53,6 @@ Eigen::Matrix4f get_model_matrix(float rotation_angle)
 	return model;
 }
 
-/*
-
-// 绕x轴旋转
-
-Rx(θ)=
-[1 0 0 0
- 0 cosθ -sinθ 0
- 0 sin0 cos0 0
- 0 0 0 1]
-
-// 绕y轴旋转
-
-Ry(θ)=
-[cosθ 0 sinθ 0
- 0 1 0 0
- -sinθ 0 cosθ 0
- 0 0 0 1]
-
-*/
-
-Eigen::Matrix4f get_model_matrix_rotate_y(float rotation_angle)
-{
-	Eigen::Matrix4f model = Eigen::Matrix4f::Identity();
-
-	// TODO: Implement this function
-	// Create the model matrix for rotating the triangle around the Z axis.
-	// Then return it.
-
-	/*
-	// rotate around y axis
-	Ry(θ)=
-	[cosθ 0 sinθ 0
-	 0 1 0 0
-	 -sinθ 0 cosθ 0
-	 0 0 0 1]
-	*/
-
-	float rad = angleToRad(rotation_angle);
-	Eigen::Matrix4f translate;
-	translate <<
-		cos(rad), 0, sin(rad), 0,
-		0, 1, 0, 0,
-		-sin(rad), 0, cos(rad), 0,
-		0, 0, 0, 1;
-
-	model = translate * model;
-	return model;
-}
-
 // is it the eye_fov is yFov? fov is in degrees
 Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
 	float zNear, float zFar)
@@ -114,15 +65,15 @@ Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
 	// Create the projection matrix for the given parameters.
 	// Then return it.
 
-	float yTall = 0, yLow = 0;
+	float yTop = 0, yBottom = 0;
 	float xLeft = 0, xRight = 0;
 
 	float eye_fov_rad = angleToRad(eye_fov);
 
-	yTall = tan(eye_fov_rad * 0.5f) * abs(zNear);
-	xRight = aspect_ratio * yTall;
+	yTop = tan(eye_fov_rad * 0.5f) * abs(zNear);
+	xRight = aspect_ratio * yTop;
 	xLeft = -xRight;
-	yLow = -yTall;
+	yBottom = -yTop;
 
 	Eigen::Matrix4f zTransform;
 	zTransform <<
@@ -131,23 +82,23 @@ Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
 		0, 0, zNear + zFar, 0,
 		0, 0, 0, zNear *zFar;
 
-	Eigen::Matrix4f scaleTransform;
-	scaleTransform <<
-		2 / (xRight - xLeft), 0, 0, 0,
-		0, 2 / (yTall - yLow), 0, 0,
-		0, 0, 2 / (zNear - zFar), 0,
-		0, 0, 0, 1;
-
 	Eigen::Matrix4f orthoMoveTransform;
 	orthoMoveTransform <<
 		1, 0, 0, -(xRight + xLeft)*0.5f,
-		0, 1, 0, -(yTall + yLow)*0.5f,
+		0, 1, 0, -(yTop + yBottom)*0.5f,
 		0, 0, 1, -(zNear + zFar)*0.5f,
+		0, 0, 0, 1;
+
+	Eigen::Matrix4f scaleTransform;
+	scaleTransform <<
+		2 / (xRight - xLeft), 0, 0, 0,
+		0, 2 / (yTop - yBottom), 0, 0,
+		0, 0, 2 / (zNear - zFar), 0,
 		0, 0, 0, 1;
 
 	// !!! move first, second scale, then squash it :)
 	// first 2 are for ortho projection
-	projection = zTransform * scaleTransform *orthoMoveTransform;
+	projection = orthoMoveTransform * scaleTransform * zTransform;
 	return projection;
 }
 
