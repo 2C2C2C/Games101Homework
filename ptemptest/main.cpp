@@ -53,43 +53,21 @@ float AngleToRad(float angle)
 	return angle * (float)M_PI / 180.0f;
 }
 
-// anti clockwise rotate
-void Pa0Exec(float rotateRad, Eigen::Vector2f move)
-{
-	// Eigen::MatrixXf ogPointMatrix(3, 1);
-	// ogPointMatrix << 2.0, 1.0, 0.0;
-	Eigen::Vector3f ogPointMatrix;
-	ogPointMatrix << 2.0, 1.0, 1.0;
-	std::cout << ogPointMatrix << std::endl;
-	std::cout << std::endl;
-
-	// anticlock wise rotate
-	// [ cosθ, -sinθ, 0
-	// sinθ, cosθ, 0
-	// 0, 0, 1 ]
-
-	Eigen::Matrix3f rotMatrix;
-	rotMatrix << cos(rotateRad), -sin(rotateRad), 0, sin(rotateRad), cos(rotateRad), 0, 0, 0, 1;
-
-	Eigen::Matrix3f moveMatrix;
-	moveMatrix << 1.0, 0.0, move(0), 0.0, 1.0, move(1), 0.0, 0.0, 1.0;
-
-	Eigen::Matrix3Xf result;
-	result = rotMatrix * ogPointMatrix;
-	std::cout << "after rotate: " << std::endl;
-	std::cout << result << std::endl;
-
-	result = moveMatrix * result;
-	std::cout << "after move: " << std::endl;
-
-	std::cout << result << std::endl;
-}
-
 int main()
 {
-	// Example();
-	float rotateAngle = 45.0;
-	Eigen::Vector2f extraMove(1.0, 2.0);
-	Pa0Exec(AngleToRad(rotateAngle), extraMove);
+	Eigen::Vector4f axisMatrix;
+	axisMatrix << 0.0f, 0.0f, 1.0f, 0.0f;
+
+	float tempRadA = asin(AngleToRad(30.0f));
+	Eigen::Matrix4f axisRx;
+	axisRx <<
+		1, 0, 0, 0,
+		0, std::cos(tempRadA), -std::sin(tempRadA), 0,
+		0, std::sin(tempRadA), std::cos(tempRadA), 0,
+		0, 0, 0, 1;
+
+	Eigen::Vector4f result = axisMatrix.transpose() * axisRx;
+	std::cout << result << std::endl;
+
 	return 0;
 }

@@ -48,7 +48,7 @@ void Example()
 	// matrix multiply vector i * v
 }
 
-float AngleToRad(float angle)
+float AngelToRad(float angle)
 {
 	return angle * M_PI / 180.0;
 }
@@ -90,6 +90,6 @@ int main()
 	// Example();
 	float rotateAngle = 45.0;
 	Eigen::Vector2f extraMove(1.0, 2.0);
-	Pa0Exec(AngleToRad(rotateAngle), extraMove);
+	Pa0Exec(AngelToRad(rotateAngle), extraMove);
 	return 0;
 }
