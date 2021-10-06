@@ -1,0 +1,3 @@
+https://www.eng.uc.edu/~beaucag/Classes/Properties/OptionalProjects/CoordinateTransformationCode/Rotate%20about%20an%20arbitrary%20axis%20(3%20dimensions).html
+
+https://eigen.tuxfamily.org/dox/group__TutorialMatrixArithmetic.html
