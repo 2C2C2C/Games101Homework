@@ -39,6 +39,10 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
 	return Vector4f(v3.x(), v3.y(), v3.z(), w);
 }
 
+static bool insideTriangle(int x, int y, const Triangle& t)
+{
+	return false;
+}
 
 static bool insideTriangle(int x, int y, const Vector3f* _v)
 {
@@ -66,7 +70,7 @@ static bool insideTriangle(int x, int y, const Vector3f* _v)
 	tempDirAToB = tempTrianglePointB - tempTrianglePointA;
 	tempDirAToCheck = checkPoint - tempTrianglePointA;
 
-	result = zAxis.dot(tempDirAToB.cross(tempDirAToCheck)) >= 0;
+	result = zAxis.dot(tempDirAToB.cross(tempDirAToCheck)) > 0;
 
 	if (!result)
 		return result;
@@ -75,12 +79,12 @@ static bool insideTriangle(int x, int y, const Vector3f* _v)
 	tempTrianglePointA = _v[1];
 	tempTrianglePointA[2] = 0;
 	tempTrianglePointB = _v[2];
-	tempTrianglePointB[2] = 2;
+	tempTrianglePointB[2] = 0;
 
 	tempDirAToB = tempTrianglePointB - tempTrianglePointA;
 	tempDirAToCheck = checkPoint - tempTrianglePointA;
 
-	result = result && zAxis.dot(tempDirAToB.cross(tempDirAToCheck)) >= 0;
+	result = result && zAxis.dot(tempDirAToB.cross(tempDirAToCheck)) > 0;
 
 	if (!result)
 		return result;
@@ -94,7 +98,7 @@ static bool insideTriangle(int x, int y, const Vector3f* _v)
 	tempDirAToB = tempTrianglePointB - tempTrianglePointA;
 	tempDirAToCheck = checkPoint - tempTrianglePointA;
 
-	result = result && zAxis.dot(tempDirAToB.cross(tempDirAToCheck)) >= 0;
+	result = result && zAxis.dot(tempDirAToB.cross(tempDirAToCheck)) > 0;
 
 	return result;
 }
@@ -117,6 +121,8 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
 	float f2 = (50 + 0.1) / 2.0;
 
 	Eigen::Matrix4f mvp = projection * view * model;
+
+	int temp = 1;
 	for (auto& i : ind)
 	{
 		Triangle t;
@@ -158,42 +164,81 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
 
 //Screen space rasterization
 void rst::rasterizer::rasterize_triangle(const Triangle& t) {
+
 	//auto v = t.toVector4();
-	std::array<Vector4f, 3> trianglePointArray = t.toVector4();
-
-	float yTop = MAX(trianglePointArray[0][1], trianglePointArray[1][1]);
-	yTop = MAX(yTop, trianglePointArray[2][1]);
-
-	float yBottom = MIN(trianglePointArray[0][1], trianglePointArray[1][1]);
-	yBottom = MIN(yBottom, trianglePointArray[2][1]);
-
-	float xLeft = MIN(trianglePointArray[0][0], trianglePointArray[1][0]);
-	yBottom = MIN(yBottom, trianglePointArray[2][0]);
-
-	float xRight = MAX(trianglePointArray[0][0], trianglePointArray[1][0]);
-	yBottom = MAX(yBottom, trianglePointArray[2][0]);
-
-	Eigen::Vector4f boxTopLeft, boxBottomRight;
-	boxTopLeft << xLeft, yTop, 0.0f, 1.0f;
-	boxBottomRight << xRight, yBottom, 0.0f, 1.0f;
-
-
+	std::array<Vector4f, 3> v = t.toVector4();
+	Eigen::Vector3f *triangleVector3Array = new Eigen::Vector3f[3];
+	triangleVector3Array[0] = Eigen::Vector3f(v[0].x(), v[0].y(), v[0].z());
+	triangleVector3Array[1] = Eigen::Vector3f(v[1].x(), v[1].y(), v[1].z());
+	triangleVector3Array[2] = Eigen::Vector3f(v[2].x(), v[2].y(), v[2].z());
 
 	// TODO : Find out the bounding box of current triangle.
+	int	boxIndexBottomY = (int)std::floor(MIN(MIN(v[0].y(), v[1].y()), v[2].y()));
+	int	boxIndexTopY = (int)std::ceilf(MAX(MAX(v[0].y(), v[1].y()), v[2].y()));
+
+	int	boxIndexLeftX = (int)std::floor(MIN(MIN(v[0].x(), v[1].x()), v[2].x()));
+	int	boxIndexRightX = (int)std::ceilf(MAX(MAX(v[0].x(), v[1].x()), v[2].x()));
+
+	std::cout << "bottom left " << boxIndexLeftX << " " << boxIndexBottomY << std::endl;
+	std::cout << "top right " << boxIndexRightX << " " << boxIndexTopY << std::endl;
+
 	// iterate through the pixel and find if the current pixel is inside the triangle
 
-	// If so, use the following code to get the interpolated z value.
-	//auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
-	//float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-	//float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-	//z_interpolated *= w_reciprocal;
+	int x = 0, y = 0;
+	float centerPosX = 0.0f, centerPosY;
+	for (int x = boxIndexLeftX; x <= boxIndexRightX; x++)
+		for (int y = boxIndexBottomY; y <= boxIndexTopY; y++)
+		{
+			centerPosX = x + 0.5f;
+			centerPosY = y + 0.5f;
 
-	//std::tuple<float, float, float> tempTuple = computeBarycentric2D(x, y, t.v);
-	//float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-	//float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-	//z_interpolated *= w_reciprocal;
+			// temp draw box
 
-	// TODO : set the current pixel (use the set_pixel function) to the color of the triangle (use getColor function) if it should be painted.
+			////If so, use the following code to get the interpolated z
+			//std::tuple<float, float, float> tempTuple = computeBarycentric2D(centerPosX, centerPosY, t.v);
+			//float alpha = std::get<0>(tempTuple);
+			//float beta = std::get<1>(tempTuple);
+			//float gamma = std::get<2>(tempTuple);
+
+			//////continue;
+			//float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+			//float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+			//z_interpolated *= w_reciprocal;
+
+			//int currentIndex = get_index(x, y);
+			//if (depth_buf[currentIndex] > z_interpolated)
+			//{
+			//	// paint box
+			//	Eigen::Vector3f point;
+			//	point << centerPosX, centerPosY, z_interpolated;
+			//	set_pixel(point, t.getColor());
+			//}
+
+			if (insideTriangle(centerPosX, centerPosY, triangleVector3Array))
+			{
+				//If so, use the following code to get the interpolated z
+				std::tuple<float, float, float> tempTuple = computeBarycentric2D(centerPosX, centerPosY, t.v);
+				float alpha = std::get<0>(tempTuple);
+				float beta = std::get<1>(tempTuple);
+				float gamma = std::get<2>(tempTuple);
+
+				float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+				float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+				z_interpolated *= w_reciprocal;
+
+				int currentIndex = get_index(x, y);
+				if (depth_buf[currentIndex] > z_interpolated)
+				{
+					// paint
+					Eigen::Vector3f color = t.getColor();
+					Eigen::Vector3f point;
+					point << (float)x, (float)y, z_interpolated;
+					depth_buf[currentIndex] = z_interpolated;
+					set_pixel(point, t.getColor());
+				}
+			}
+		}
+
 }
 
 void rst::rasterizer::set_model(const Eigen::Matrix4f& m)
