@@ -179,64 +179,121 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
 	int	boxIndexLeftX = (int)std::floor(MIN(MIN(v[0].x(), v[1].x()), v[2].x()));
 	int	boxIndexRightX = (int)std::ceilf(MAX(MAX(v[0].x(), v[1].x()), v[2].x()));
 
-	std::cout << "bottom left " << boxIndexLeftX << " " << boxIndexBottomY << std::endl;
-	std::cout << "top right " << boxIndexRightX << " " << boxIndexTopY << std::endl;
+	//std::cout << "bottom left " << boxIndexLeftX << " " << boxIndexBottomY << std::endl;
+	//std::cout << "top right " << boxIndexRightX << " " << boxIndexTopY << std::endl;
 
 	// iterate through the pixel and find if the current pixel is inside the triangle
 
+	Eigen::Vector2f tempSampleReference[4] =
+	{
+		Eigen::Vector2f(0.25f,0.25f),
+		Eigen::Vector2f(0.25f,0.75f),
+		Eigen::Vector2f(0.75f,0.25f),
+		Eigen::Vector2f(0.75f,0.75f),
+	};
+
+	bool useMSAA = true;
 	int x = 0, y = 0;
 	float centerPosX = 0.0f, centerPosY;
 	for (int x = boxIndexLeftX; x <= boxIndexRightX; x++)
 		for (int y = boxIndexBottomY; y <= boxIndexTopY; y++)
 		{
-			centerPosX = x + 0.5f;
-			centerPosY = y + 0.5f;
-
-			// temp draw box
-
-			////If so, use the following code to get the interpolated z
-			//std::tuple<float, float, float> tempTuple = computeBarycentric2D(centerPosX, centerPosY, t.v);
-			//float alpha = std::get<0>(tempTuple);
-			//float beta = std::get<1>(tempTuple);
-			//float gamma = std::get<2>(tempTuple);
-
-			//////continue;
-			//float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-			//float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-			//z_interpolated *= w_reciprocal;
-
-			//int currentIndex = get_index(x, y);
-			//if (depth_buf[currentIndex] > z_interpolated)
-			//{
-			//	// paint box
-			//	Eigen::Vector3f point;
-			//	point << centerPosX, centerPosY, z_interpolated;
-			//	set_pixel(point, t.getColor());
-			//}
-
-			if (insideTriangle(centerPosX, centerPosY, triangleVector3Array))
+			if (useMSAA)
 			{
-				//If so, use the following code to get the interpolated z
-				std::tuple<float, float, float> tempTuple = computeBarycentric2D(centerPosX, centerPosY, t.v);
-				float alpha = std::get<0>(tempTuple);
-				float beta = std::get<1>(tempTuple);
-				float gamma = std::get<2>(tempTuple);
-
-				float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-				float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-				z_interpolated *= w_reciprocal;
-
-				int currentIndex = get_index(x, y);
-				if (depth_buf[currentIndex] > z_interpolated)
+				int testResult = 0;
+				float tempZDepth = FLT_MAX;
+				for (int i = 0; i < 4; i++)
 				{
-					// paint
-					Eigen::Vector3f color = t.getColor();
-					Eigen::Vector3f point;
-					point << (float)x, (float)y, z_interpolated;
-					depth_buf[currentIndex] = z_interpolated;
-					set_pixel(point, t.getColor());
+					centerPosX = (float)x + tempSampleReference[i].x();
+					centerPosY = (float)y + tempSampleReference[i].y();
+					if (insideTriangle(centerPosX, centerPosY, triangleVector3Array))
+					{
+						//If so, use the following code to get the interpolated z
+						std::tuple<float, float, float> tempTuple = computeBarycentric2D(centerPosX, centerPosY, t.v);
+						float alpha = std::get<0>(tempTuple);
+						float beta = std::get<1>(tempTuple);
+						float gamma = std::get<2>(tempTuple);
+
+						// TODO @Hiko understand thses
+						float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+						float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+						z_interpolated *= w_reciprocal;
+						// TODO @Hiko understand thses
+
+						tempZDepth = MIN(z_interpolated, tempZDepth);
+						testResult++;
+					}
+				}
+
+				if (testResult > 0)
+				{
+					int currentIndex = get_index(x, y);
+					if (depth_buf[currentIndex] > tempZDepth)
+					{
+						//	// paint
+						Eigen::Vector3f point;
+						point << (float)x, (float)y, tempZDepth;
+						depth_buf[currentIndex] = tempZDepth;
+
+						Eigen::Vector3f color = t.getColor() * (float)testResult * 0.25f;
+						set_pixel(point, color);
+					}
+				}
+
+			}
+			else
+			{
+				centerPosX = (float)x + 0.5f;
+				centerPosY = (float)y + 0.5f;
+				if (insideTriangle(centerPosX, centerPosY, triangleVector3Array))
+				{
+					//If so, use the following code to get the interpolated z
+					std::tuple<float, float, float> tempTuple = computeBarycentric2D(centerPosX, centerPosY, t.v);
+					float alpha = std::get<0>(tempTuple);
+					float beta = std::get<1>(tempTuple);
+					float gamma = std::get<2>(tempTuple);
+
+					// TODO @Hiko understand thses
+					float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+					float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+					z_interpolated *= w_reciprocal;
+					// TODO @Hiko understand thses
+
+					int currentIndex = get_index(x, y);
+					if (depth_buf[currentIndex] > z_interpolated)
+					{
+						// paint
+						Eigen::Vector3f point;
+						point << (float)x, (float)y, z_interpolated;
+						depth_buf[currentIndex] = z_interpolated;
+						set_pixel(point, t.getColor());
+					}
+				}
+				else
+				{
+					// temp draw box
+					////If so, use the following code to get the interpolated z
+					//std::tuple<float, float, float> tempTuple = computeBarycentric2D(centerPosX, centerPosY, t.v);
+					//float alpha = std::get<0>(tempTuple);
+					//float beta = std::get<1>(tempTuple);
+					//float gamma = std::get<2>(tempTuple);
+
+					//////continue;
+					//float w_reciprocal = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+					//float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+					//z_interpolated *= w_reciprocal;
+
+					//int currentIndex = get_index(x, y);
+					//if (depth_buf[currentIndex] > z_interpolated)
+					//{
+					//	// paint box
+					//	Eigen::Vector3f point;
+					//	point << centerPosX, centerPosY, z_interpolated;
+					//	set_pixel(point, t.getColor());
+					//}
 				}
 			}
+
 		}
 
 }
@@ -284,7 +341,6 @@ void rst::rasterizer::set_pixel(const Eigen::Vector3f& point, const Eigen::Vecto
 	//old index: auto ind = point.y() + point.x() * width;
 	auto ind = (height - 1 - point.y())*width + point.x();
 	frame_buf[ind] = color;
-
 }
 
 // clang-format on

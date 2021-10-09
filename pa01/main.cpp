@@ -79,7 +79,7 @@ Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
 	zTransform <<
 		zNear, 0, 0, 0,
 		0, zNear, 0, 0,
-		0, 0, zNear + zFar, -zNear *zFar,
+		0, 0, zNear + zFar, -zNear * zFar,
 		0, 0, 1, 0;
 
 	Eigen::Matrix4f orthoMoveTransform;
@@ -96,9 +96,9 @@ Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
 		0, 0, 2 / (zNear - zFar), 0,
 		0, 0, 0, 1;
 
-	// !!! move first, second scale, then squash it :)
+	// !!! move first, second scale
 	// first 2 are for ortho projection
-	projection = orthoMoveTransform * scaleTransform * zTransform;
+	projection = scaleTransform * orthoMoveTransform * zTransform;
 	return projection;
 }
 
