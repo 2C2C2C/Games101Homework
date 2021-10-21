@@ -118,7 +118,88 @@ struct light
 {
 	Eigen::Vector3f position;
 	Eigen::Vector3f intensity;
+
+	light(Eigen::Vector3f pos, Eigen::Vector3f i)
+	{
+		this->position = pos;
+		this->intensity = i;
+	}
 };
+
+struct LightParameter
+{
+	Eigen::Vector3f ka;
+	Eigen::Vector3f kd;
+	Eigen::Vector3f ks;
+	Eigen::Vector3f amb_light;
+
+	// parameters : ka, kd, ks, ambient
+	LightParameter(Eigen::Vector3f inKa, Eigen::Vector3f inKd, Eigen::Vector3f inKs, Eigen::Vector3f inAmb)
+	{
+		this->ka = inKa;
+		this->kd = inKd;
+		this->ks = inKs;
+		this->amb_light = inAmb;
+	}
+};
+
+struct RefelectionData
+{
+	Eigen::Vector3f point;
+	Eigen::Vector3f normal;
+	Eigen::Vector3f eyePos;
+	float p;
+
+	// parameters : reflection point, normal, eye position, p value (100 ~ 200)
+	RefelectionData(Eigen::Vector3f inPoint, Eigen::Vector3f inNormal, Eigen::Vector3f inEyePos, float inPValue)
+	{
+		this->point = inPoint;
+		this->normal = inNormal;
+		this->eyePos = inEyePos;
+		this->p = inPValue;
+	}
+};
+
+Eigen::Vector3f calculate_result_color(light lightData, LightParameter lightParameter, RefelectionData refelectionData)
+{
+	// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
+	// components are. Then, accumulate that result on the *result_color* object.
+	Eigen::Vector3f result_color = { 0, 0, 0 };
+	Eigen::Vector3f ambient(0.0f, 0.0f, 0.0f);
+	Eigen::Vector3f diffuse(0.0f, 0.0f, 0.0f);
+	Eigen::Vector3f specular(0.0f, 0.0f, 0.0f);
+
+	Eigen::Vector3f lightDir = (lightData.position - refelectionData.point);
+	float rSqr = lightDir.squaredNorm();
+	lightDir.normalize();
+
+	// ambient La = Ka * Ia
+	ambient[0] = lightParameter.ka[0] * lightParameter.amb_light[0];
+	ambient[1] = lightParameter.ka[1] * lightParameter.amb_light[1];
+	ambient[2] = lightParameter.ka[2] * lightParameter.amb_light[2];
+
+	float lightIntensityX = lightData.intensity[0] / rSqr;
+	float lightIntensityY = lightData.intensity[1] / rSqr;
+	float lightIntensityZ = lightData.intensity[2] / rSqr;
+
+	// diffuse Ld = kd(I / r^2) max(0, n * l)
+	diffuse[0] = lightParameter.kd[0] * lightIntensityX * MAX(0.0f, refelectionData.normal.dot(lightDir));
+	diffuse[1] = lightParameter.kd[1] * lightIntensityY * MAX(0.0f, refelectionData.normal.dot(lightDir));
+	diffuse[2] = lightParameter.kd[2] * lightIntensityZ * MAX(0.0f, refelectionData.normal.dot(lightDir));
+
+	Eigen::Vector3f viewDir = (refelectionData.eyePos - refelectionData.point).normalized();
+	Eigen::Vector3f specularDirH = (viewDir + lightDir).normalized();
+
+	// specular Ls = Ks*(I/r^2) max(0,cos a)^p = Ks * (I / r ^ 2) max(0, n * h) ^ p ; [p : 100 ~ 200]
+	specular[0] = lightParameter.ks[0] * lightIntensityX * std::pow(MAX(0.0f, refelectionData.normal.dot(specularDirH)), refelectionData.p);
+	specular[1] = lightParameter.ks[1] * lightIntensityY *	std::pow(MAX(0.0f, refelectionData.normal.dot(specularDirH)), refelectionData.p);
+	specular[2] = lightParameter.ks[2] * lightIntensityZ * std::pow(MAX(0.0f, refelectionData.normal.dot(specularDirH)), refelectionData.p);
+
+	// L = La + Ld + Ls
+	result_color += ambient + diffuse + specular;
+
+	return result_color;
+}
 
 Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 {
@@ -150,43 +231,13 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 
 	Eigen::Vector3f result_color = { 0, 0, 0 };
 
+	LightParameter lightParameter(ka, kd, ks, amb_light_intensity);
+	RefelectionData refelectionData(point, normal, eye_pos, p);
+
+	// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
+	// components are. Then, accumulate that result on the *result_color* object.
 	for (auto& light : lights)
-	{
-		// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
-		// components are. Then, accumulate that result on the *result_color* object.
-		Eigen::Vector3f ambient(0.0f, 0.0f, 0.0f);
-		Eigen::Vector3f diffuse(0.0f, 0.0f, 0.0f);
-		Eigen::Vector3f specular(0.0f, 0.0f, 0.0f);
-
-		Eigen::Vector3f lightDir = (light.position - point);
-		float rSqr = lightDir.squaredNorm();
-		lightDir.normalize();
-
-		// ambient La = Ka * Ia
-		ambient[0] = ka[0] * amb_light_intensity[0];
-		ambient[1] = ka[1] * amb_light_intensity[1];
-		ambient[2] = ka[2] * amb_light_intensity[2];
-
-		float lightIntensityX = light.intensity[0] / rSqr;
-		float lightIntensityY = light.intensity[1] / rSqr;
-		float lightIntensityZ = light.intensity[2] / rSqr;
-
-		// diffuse Ld = kd(I / r^2) max(0, n * l)
-		diffuse[0] = kd[0] * lightIntensityX * MAX(0.0f, normal.dot(lightDir));
-		diffuse[1] = kd[1] * lightIntensityY * MAX(0.0f, normal.dot(lightDir));
-		diffuse[2] = kd[2] * lightIntensityZ * MAX(0.0f, normal.dot(lightDir));
-
-		Eigen::Vector3f viewDir = (eye_pos - point).normalized();
-		Eigen::Vector3f specularDirH = (viewDir + lightDir).normalized();
-
-		// specular Ls = Ks*(I/r^2) max(0,cos a)^p = Ks * (I / r ^ 2) max(0, n * h) ^ p ; [p : 100 ~ 200]
-		specular[0] = ks[0] * lightIntensityX * std::pow(MAX(0.0f, normal.dot(specularDirH)), 200);
-		specular[1] = ks[1] * lightIntensityY *	std::pow(MAX(0.0f, normal.dot(specularDirH)), 200);
-		specular[2] = ks[2] * lightIntensityZ * std::pow(MAX(0.0f, normal.dot(specularDirH)), 200);
-
-		// L = La + Ld + Ls
-		result_color = ambient + diffuse + specular;
-	}
+		result_color += calculate_result_color(light, lightParameter, refelectionData);
 
 	return result_color * 255.f;
 }
@@ -211,12 +262,13 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
 	Eigen::Vector3f normal = payload.normal;
 
 	Eigen::Vector3f result_color = { 0, 0, 0 };
-	for (auto& light : lights)
-	{
-		// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
-		// components are. Then, accumulate that result on the *result_color* object.
+	LightParameter lightParameter(ka, kd, ks, amb_light_intensity);
+	RefelectionData refelectionData(point, normal, eye_pos, p);
 
-	}
+	// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
+	// components are. Then, accumulate that result on the *result_color* object.
+	for (auto& light : lights)
+		result_color += calculate_result_color(light, lightParameter, refelectionData);
 
 	return result_color * 255.f;
 }
