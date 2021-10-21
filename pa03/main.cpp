@@ -54,7 +54,7 @@ Eigen::Matrix4f get_model_matrix(float angle)
 
 Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio, float zNear, float zFar)
 {
-	// TODO: Use the same projection matrix from the previous assignments
+	// --done TODO: Use the same projection matrix from the previous assignments
 	Eigen::Matrix4f projection;
 
 	float yTop = 0, yBottom = 0;
@@ -126,7 +126,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 	if (payload.texture)
 	{
 		// TODO: Get the texture value at the texture coordinates of the current fragment
-		return_color[0] = return_color[1] = return_color[2] = 1.0f;
+		return_color = payload.texture->getColor(payload.tex_coords.x(), payload.tex_coords.y());
 	}
 	Eigen::Vector3f texture_color;
 	texture_color << return_color.x(), return_color.y(), return_color.z();
@@ -154,7 +154,38 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 	{
 		// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
 		// components are. Then, accumulate that result on the *result_color* object.
+		Eigen::Vector3f ambient(0.0f, 0.0f, 0.0f);
+		Eigen::Vector3f diffuse(0.0f, 0.0f, 0.0f);
+		Eigen::Vector3f specular(0.0f, 0.0f, 0.0f);
 
+		Eigen::Vector3f lightDir = (light.position - point);
+		float rSqr = lightDir.squaredNorm();
+		lightDir.normalize();
+
+		// ambient La = Ka * Ia
+		ambient[0] = ka[0] * amb_light_intensity[0];
+		ambient[1] = ka[1] * amb_light_intensity[1];
+		ambient[2] = ka[2] * amb_light_intensity[2];
+
+		float lightIntensityX = light.intensity[0] / rSqr;
+		float lightIntensityY = light.intensity[1] / rSqr;
+		float lightIntensityZ = light.intensity[2] / rSqr;
+
+		// diffuse Ld = kd(I / r^2) max(0, n * l)
+		diffuse[0] = kd[0] * lightIntensityX * MAX(0.0f, normal.dot(lightDir));
+		diffuse[1] = kd[1] * lightIntensityY * MAX(0.0f, normal.dot(lightDir));
+		diffuse[2] = kd[2] * lightIntensityZ * MAX(0.0f, normal.dot(lightDir));
+
+		Eigen::Vector3f viewDir = (eye_pos - point).normalized();
+		Eigen::Vector3f specularDirH = (viewDir + lightDir).normalized();
+
+		// specular Ls = Ks*(I/r^2) max(0,cos a)^p = Ks * (I / r ^ 2) max(0, n * h) ^ p ; [p : 100 ~ 200]
+		specular[0] = ks[0] * lightIntensityX * std::pow(MAX(0.0f, normal.dot(specularDirH)), 200);
+		specular[1] = ks[1] * lightIntensityY *	std::pow(MAX(0.0f, normal.dot(specularDirH)), 200);
+		specular[2] = ks[2] * lightIntensityZ * std::pow(MAX(0.0f, normal.dot(specularDirH)), 200);
+
+		// L = La + Ld + Ls
+		result_color = ambient + diffuse + specular;
 	}
 
 	return result_color * 255.f;
@@ -190,11 +221,8 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
 	return result_color * 255.f;
 }
 
-
-
 Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payload)
 {
-
 	Eigen::Vector3f ka = Eigen::Vector3f(0.005, 0.005, 0.005);
 	Eigen::Vector3f kd = payload.color;
 	Eigen::Vector3f ks = Eigen::Vector3f(0.7937, 0.7937, 0.7937);
@@ -239,10 +267,8 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
 	return result_color * 255.f;
 }
 
-
 Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
 {
-
 	Eigen::Vector3f ka = Eigen::Vector3f(0.005, 0.005, 0.005);
 	Eigen::Vector3f kd = payload.color;
 	Eigen::Vector3f ks = Eigen::Vector3f(0.7937, 0.7937, 0.7937);
@@ -394,13 +420,44 @@ int main(int argc, const char** argv)
 
 		if (key == 'a')
 		{
-			angle -= 0.1;
+			angle -= 5.0;
 		}
 		else if (key == 'd')
 		{
-			angle += 0.1;
+			angle += 5.0;
 		}
 
+		if (key < '9' && key > '0')
+		{
+			switch (key)
+			{
+			case '1':
+				std::cout << "Rasterizing using the texture shader\n";
+				active_shader = texture_fragment_shader;
+				texture_path = "spot_texture.png";
+				r.set_texture(Texture(obj_path + texture_path));
+				break;
+			case '2':
+				std::cout << "Rasterizing using the normal shader\n";
+				active_shader = normal_fragment_shader;
+				break;
+			case '3':
+				std::cout << "Rasterizing using the phong shader\n";
+				active_shader = phong_fragment_shader;
+				break;
+			case '4':
+				std::cout << "Rasterizing using the bump shader\n";
+				active_shader = bump_fragment_shader;
+				break;
+			case '5':
+				std::cout << "Rasterizing using the bump shader\n";
+				active_shader = displacement_fragment_shader;
+				break;
+			default:
+				break;
+			}
+			r.set_fragment_shader(active_shader);
+		}
 	}
 	return 0;
 }
