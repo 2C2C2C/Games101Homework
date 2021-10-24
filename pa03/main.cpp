@@ -162,7 +162,7 @@ struct RefelectionData
 
 Eigen::Vector3f calculate_result_color(light lightData, LightParameter lightParameter, RefelectionData refelectionData)
 {
-	// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
+	// --done  TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
 	// components are. Then, accumulate that result on the *result_color* object.
 	Eigen::Vector3f result_color = { 0, 0, 0 };
 	Eigen::Vector3f ambient(0.0f, 0.0f, 0.0f);
@@ -206,7 +206,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 	Eigen::Vector3f return_color = { 0, 0, 0 };
 	if (payload.texture)
 	{
-		// TODO: Get the texture value at the texture coordinates of the current fragment
+		// --done TODO: Get the texture value at the texture coordinates of the current fragment
 		return_color = payload.texture->getColor(payload.tex_coords.x(), payload.tex_coords.y());
 	}
 	Eigen::Vector3f texture_color;
@@ -234,7 +234,7 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
 	LightParameter lightParameter(ka, kd, ks, amb_light_intensity);
 	RefelectionData refelectionData(point, normal, eye_pos, p);
 
-	// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
+	// --done TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
 	// components are. Then, accumulate that result on the *result_color* object.
 	for (auto& light : lights)
 		result_color += calculate_result_color(light, lightParameter, refelectionData);
@@ -265,7 +265,7 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
 	LightParameter lightParameter(ka, kd, ks, amb_light_intensity);
 	RefelectionData refelectionData(point, normal, eye_pos, p);
 
-	// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
+	// --done TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
 	// components are. Then, accumulate that result on the *result_color* object.
 	for (auto& light : lights)
 		result_color += calculate_result_color(light, lightParameter, refelectionData);
@@ -294,27 +294,52 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
 
 	float kh = 0.2, kn = 0.1;
 
-	// TODO: Implement displacement mapping here
-	// Let n = normal = (x, y, z)
-	// Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
-	// Vector b = n cross product t
-	// Matrix TBN = [t b n]
-	// dU = kh * kn * (h(u+1/w,v)-h(u,v))
-	// dV = kh * kn * (h(u,v+1/h)-h(u,v))
-	// Vector ln = (-dU, -dV, 1)
-	// Position p = p + kn * n * h(u,v)
-	// Normal n = normalize(TBN * ln)
+	// --done TODO: Implement displacement mapping here
 
+	//Let n = normal = (x, y, z)
+	//Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
+	//Vector b = n cross product t
+	//Matrix TBN = [t b n]
+	//dU = kh * kn * (h(u+1/w,v)-h(u,v))
+	//dV = kh * kn * (h(u,v+1/h)-h(u,v))
+	//Vector ln = (-dU, -dV, 1)
+	//Normal n = normalize(TBN * ln)
+	//Position p = p + kn * n * h(u,v)
+
+	Eigen::Vector3f t(normal.x() * normal.y() / std::sqrt(std::pow(normal.x(), 2) + std::pow(normal.z(), 2)),
+		std::sqrt(std::pow(normal.x(), 2) + std::pow(normal.z(), 2)),
+		normal.z() * normal.y() / sqrt(std::pow(normal.x(), 2) + std::pow(normal.z(), 2)));
+
+	Eigen::Vector3f b = normal.cross(t);
+	Eigen::Matrix3f TBN;
+	TBN.col(0) = t.normalized();
+	TBN.col(0) = b.normalized();
+	TBN.col(0) = normal;
+
+	int w = payload.texture->width;
+	int h = payload.texture->height;
+	float u = payload.tex_coords.x();
+	float v = payload.tex_coords.y();
+
+	float huv = payload.texture->getColor(u, v).norm();
+
+	float dU = kh * kn * (payload.texture->getColor(u + 1.0f / w, v).norm() - huv);
+	float dV = kh * kn * (payload.texture->getColor(u, v + 1.0f / h).norm() - huv);
+
+	Eigen::Vector3f ln(-dU, -dV, 1);
+	Eigen::Vector3f normalTemp = (TBN * ln).normalized();
+	Eigen::Vector3f posTemp = point + kn * normalTemp * huv;
+
+	// displacement mapping here
 
 	Eigen::Vector3f result_color = { 0, 0, 0 };
+	LightParameter lightParameter(ka, kd, ks, amb_light_intensity);
+	RefelectionData refelectionData(posTemp, normal, eye_pos, p);
 
+	// --done TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
+	// components are. Then, accumulate that result on the *result_color* object.
 	for (auto& light : lights)
-	{
-		// TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
-		// components are. Then, accumulate that result on the *result_color* object.
-
-
-	}
+		result_color += calculate_result_color(light, lightParameter, refelectionData);
 
 	return result_color * 255.f;
 }
@@ -341,20 +366,45 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
 
 	float kh = 0.2, kn = 0.1;
 
-	// TODO: Implement bump mapping here
-	// Let n = normal = (x, y, z)
-	// Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
-	// Vector b = n cross product t
-	// Matrix TBN = [t b n]
-	// dU = kh * kn * (h(u+1/w,v)-h(u,v))
-	// dV = kh * kn * (h(u,v+1/h)-h(u,v))
-	// Vector ln = (-dU, -dV, 1)
-	// Normal n = normalize(TBN * ln)
+	// --done TODO: Implement displacement mapping here
 
+	//Let n = normal = (x, y, z)
+	//Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
+	//Vector b = n cross product t
+	//Matrix TBN = [t b n]
+	//dU = kh * kn * (h(u+1/w,v)-h(u,v))
+	//dV = kh * kn * (h(u,v+1/h)-h(u,v))
+	//Vector ln = (-dU, -dV, 1)
+	//Normal n = normalize(TBN * ln)
+	//Position p = p + kn * n * h(u,v)
 
-	Eigen::Vector3f result_color = { 0, 0, 0 };
-	result_color = normal;
+	Eigen::Vector3f t(normal.x() * normal.y() / std::sqrt(std::pow(normal.x(), 2) + std::pow(normal.z(), 2)),
+		std::sqrt(std::pow(normal.x(), 2) + std::pow(normal.z(), 2)),
+		normal.z() * normal.y() / sqrt(std::pow(normal.x(), 2) + std::pow(normal.z(), 2)));
 
+	Eigen::Vector3f b = normal.cross(t);
+	Eigen::Matrix3f TBN;
+	TBN.col(0) = t.normalized();
+	TBN.col(0) = b.normalized();
+	TBN.col(0) = normal;
+
+	int w = payload.texture->width;
+	int h = payload.texture->height;
+	float u = payload.tex_coords.x();
+	float v = payload.tex_coords.y();
+
+	float huv = payload.texture->getColor(u, v).norm();
+
+	float dU = kh * kn * (payload.texture->getColor(u + 1.0f / w, v).norm() - huv);
+	float dV = kh * kn * (payload.texture->getColor(u, v + 1.0f / h).norm() - huv);
+
+	Eigen::Vector3f ln(-dU, -dV, 1);
+	Eigen::Vector3f normalTemp = (TBN * ln).normalized();
+
+	// --done TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
+	// components are. Then, accumulate that result on the *result_color* object.
+
+	Eigen::Vector3f result_color = normalTemp;
 	return result_color * 255.f;
 }
 
@@ -362,7 +412,7 @@ int main(int argc, const char** argv)
 {
 	std::vector<Triangle*> TriangleList;
 
-	float angle = 140.0;
+	int angle = 140;
 	bool command_line = false;
 
 	std::string filename = "output.png";
@@ -454,32 +504,18 @@ int main(int argc, const char** argv)
 
 	while (key != 27)
 	{
-		r.clear(rst::Buffers::Color | rst::Buffers::Depth);
-
-		r.set_model(get_model_matrix(angle));
-		r.set_view(get_view_matrix(eye_pos));
-		r.set_projection(get_projection_matrix(45.0, 1, 0.1, 50));
-
-		//r.draw(pos_id, ind_id, col_id, rst::Primitive::Triangle);
-		r.draw(TriangleList);
-		cv::Mat image(700, 700, CV_32FC3, r.frame_buffer().data());
-		image.convertTo(image, CV_8UC3, 1.0f);
-		cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
-
-		cv::imshow("image", image);
-		cv::imwrite(filename, image);
-		key = cv::waitKey(10);
-
 		if (key == 'a')
 		{
-			angle -= 5.0;
+			angle -= 5;
 		}
 		else if (key == 'd')
 		{
-			angle += 5.0;
+			angle += 5;
 		}
+		angle = angle >= 0 ? angle % 360 : 360 + angle;
+		std::cout << "check angle: " << angle << std::endl;
 
-		if (key < '9' && key > '0')
+		if (key < '6' && key > '0')
 		{
 			switch (key)
 			{
@@ -509,6 +545,18 @@ int main(int argc, const char** argv)
 				break;
 			}
 			r.set_fragment_shader(active_shader);
+
+			r.clear(rst::Buffers::Color | rst::Buffers::Depth);
+			r.set_model(get_model_matrix(angle));
+			r.set_view(get_view_matrix(eye_pos));
+			r.set_projection(get_projection_matrix(45.0, 1, 0.1, 50));
+
+			r.draw(TriangleList);
+			cv::Mat image(700, 700, CV_32FC3, r.frame_buffer().data());
+			image.convertTo(image, CV_8UC3, 1.0f);
+			cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
+
+			cv::imwrite(filename, image);
 		}
 	}
 	return 0;
